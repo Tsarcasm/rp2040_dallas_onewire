@@ -6,6 +6,7 @@ cmake_minimum_required(VERSION 3.13)
 set(PICO_SDK_PATH "/home/charles/pi_pico/pico-sdk/")
 # Pull in SDK (must be before project)
 include(pico_sdk_import.cmake)
+include($ENV{PICO_SDK_PATH}/tools/CMakeLists.txt)
 
 PROJECT(dallas_onewire)
 set(CMAKE_C_STANDARD 11)
@@ -14,7 +15,11 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 add_executable(dallas_onewire
-    dallas_onewire.c
+    ${CMAKE_CURRENT_LIST_DIR}/dallas_onewire.c
+)
+
+pico_generate_pio_header(dallas_onewire 
+    ${CMAKE_CURRENT_LIST_DIR}/pio/blink.pio
 )
 
 pico_add_extra_outputs(dallas_onewire)
@@ -23,6 +28,8 @@ pico_add_extra_outputs(dallas_onewire)
 target_link_libraries(dallas_onewire 
     pico_stdlib 
     hardware_gpio
+    hardware_clocks
+    hardware_pio
 )
 
 

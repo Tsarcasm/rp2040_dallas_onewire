@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "*.pl": "prolog",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "clocks.h": "c",
+        "blink.pio.h": "c"
     }
 }
