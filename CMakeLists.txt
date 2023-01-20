@@ -42,6 +42,6 @@ pico_enable_stdio_uart(dallas_onewire 0)
 # pico location /mnt/d/
 add_custom_command(TARGET dallas_onewire POST_BUILD
     COMMAND COMMAND /bin/sh ${CMAKE_SOURCE_DIR}/copy_to_pico.sh
-    COMMENT "Copying to output directory"
+    COMMENT "Copying to pico on D:"
 )
 

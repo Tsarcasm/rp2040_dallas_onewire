@@ -1,18 +1,62 @@
 .program blink
 ; turn on led for 100 cycles, then turn off for 100 cycles
 
+
+
+; nop       0
+; reset     10
+; read      110
+; write 0   1110
+; write 1   1111
+
+.side_set 1
 .wrap_target
-    set pins, 1 [19]    ; Turn LED on and wait another 19 cycles
-    nop         [19]    ; Wait 20 cycles
-    nop         [19]    ; Wait 20 cycles
-    nop         [19]    ; Wait 20 cycles
-    nop         [19]    ; Wait 20 cycles
-    set pins, 0 [19]    ; Turn LED off and wait another 19 cycles
-    nop         [19]    ; Wait 20 cycles
-    nop         [19]    ; Wait 20 cycles
-    nop         [19]    ; Wait 20 cycles
-    nop         [19]    ; Wait 20 cycles
+start:
+    out x, 1            side 1 
+    jmp !x, start       side 1 ; jump to start if 0 bit
+    out x, 1            side 1 
+    jmp !x, reset_pulse side 1 ; jump to reset pulse if first bit is zero
+    out x, 1            side 1 
+    jmp !x, read        side 1 ; jump to read if 2nd bit is zero
+write:
+    ; write if 2nd bit is 1
+    out x, 1            side 1    
+    jmp !x, write_0     side 0 ; jump to write 0 if 3rd bit is zero ; also pull low for 5us
+write_1:
+    jmp start      [12] side 1 ; write 1 for another 60+5uS then jump to start
+write_0:
+    jmp start      [12] side 0 ; write 0 for another 60+5uS then jump to start
+read:
+    nop                 side 0 ; 5  | write 0
+    set pindirs, 0      side 0 ; 10 | set pindir input
+    in  pins, 1         side 0 ; 15 | read pins
+    push noblock   [9]  side 0 ; 65 | isr auto pushes to fifo, wait 10 cycles
+    set pindirs, 1      side 0 ; 70 | set pindir output
+    jmp start           side 1 ; 75 | return to start
+
+; hold low for 480, wait 15, read for 300 
+reset_pulse:
+    set y, 5            side 1 ; write 1 for 5us
+reset_loop:
+    jmp y--, reset_loop [15] side 0  ; write 0 for 80uS (*6=480)
+; now wait 3 cycles (=15uS)
+    set pindirs, 0      side 0 ; 5  | set as input
+    set y, 23           side 0 ; 10 | set y loop var
+; for next 96 cycles (=480uS) look for presence pulse (logic low)
+; 480/20 = 24 loops
+presence:
+    in pins, 1          side 0 ; 5  | read prescence
+    mov x isr           side 0 ; 10 | move isr to x
+    jmp  done        side 0 ; 15 | jump out if (x=0)
+    jmp y--, presence   side 0 ; 20 | loop
+done:
+    jmp y--, done  [3]  side 0 ; 20 | wait rest of y
+
+    in x, 1             side 0 ; move x to isr 
+    push noblock        side 0 ; push isr to fifo  
+    set pindirs, 1      side 0 ; set pin as output    
 .wrap
+
 
 % c-sdk {
 
@@ -28,7 +72,12 @@ void blink_program_init(PIO pio, uint sm, uint offset, uint pin, float div) {
 
     // Connect pin to SET pin (control with 'set' instruction)
     sm_config_set_set_pins(&c, pin, 1);
-
+    sm_config_set_in_pins(&c, pin); 
+    sm_config_set_out_pins(&c, pin, 1); 
+    sm_config_set_sideset_pins(&c, pin);
+    sm_config_set_out_shift(&c, true, true, 4);
+    sm_config_set_in_shift(&c, false, false, 1);
+    
     // Set the pin direction to output (in PIO)
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);
     
