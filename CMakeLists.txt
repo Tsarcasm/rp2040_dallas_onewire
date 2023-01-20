@@ -30,6 +30,7 @@ target_link_libraries(dallas_onewire
     hardware_gpio
     hardware_clocks
     hardware_pio
+    hardware_dma
 )
 
 
