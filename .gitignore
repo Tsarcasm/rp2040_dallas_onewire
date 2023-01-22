@@ -1,1 +1,4 @@
 build/
+.vscode/
+
+copy_to_pico.sh
