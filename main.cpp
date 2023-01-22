@@ -12,9 +12,10 @@
 #include "string.h"
 
 #define SK6812_PIN 16
-
-static inline void put_pixel(PIO pio, uint sm, uint32_t pixel_grb) {
-    pio_sm_put_blocking(pio, sm, pixel_grb << 8u);
+const PIO sk_pio = pio0;
+int sk_sm = 0;
+static inline void put_pixel(uint32_t pixel_grb) {
+    pio_sm_put_blocking(sk_pio, sk_sm, pixel_grb << 8u);
 }
 
 static inline uint32_t urgb_u32(uint8_t r, uint8_t g, uint8_t b) {
@@ -33,16 +34,16 @@ int main() {
     static const uint led_pin = PICO_DEFAULT_LED_PIN;
 
     // todo get free sm
-    PIO pio_pixel = pio0;
-    int sm_pixel = pio_claim_unused_sm(pio_pixel, true);
-    uint offset_pixel = pio_add_program(pio_pixel, &sk6812_program);
 
-    sk6812_program_init(pio_pixel, sm_pixel, offset_pixel, SK6812_PIN, 800000, false);
-    put_pixel(pio_pixel, sm_pixel, urgb_u32(0, 0, 0));
+    sk_sm = pio_claim_unused_sm(sk_pio, true);
+    uint offset_pixel = pio_add_program(sk_pio, &sk6812_program);
+
+    sk6812_program_init(sk_pio, sk_sm, offset_pixel, SK6812_PIN, 800000, false);
+    put_pixel(urgb_u32(0, 0, 0));
 
     DallasOneWire dallas(pio0, DALLAS_PIN, 8);
-
     while (true) {
+        put_pixel(urgb_u32(25, 25, 0));
         printf("Searching for devices\r\n");
         dallas.updateSensors();
         for (uint i = 0; i < dallas.getNumSensors(); i++) {
@@ -50,6 +51,7 @@ int main() {
             if (!dallas.tryGetSensor(i, rom)) break;
             printf("Found rom %d: 0x" SN_FORMAT "\r\n", i, SN_ARGS(rom));
         }
+        put_pixel(urgb_u32(0, 0, 25));
         dallas.convertTemperature();
         sleep_ms(1000);
         for (uint i = 0; i < dallas.getNumSensors(); i++) {
@@ -63,6 +65,7 @@ int main() {
                 printf("T %d: %d.%d\r\n", i, (int)t, (int)(t * 10) % 10);
             }
         }
+        put_pixel(urgb_u32(0, 50, 5));
         sleep_ms(1000);
     }
 
