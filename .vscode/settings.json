@@ -4,6 +4,16 @@
         "stdlib.h": "c",
         "clocks.h": "c",
         "blink.pio.h": "c",
-        "malloc.h": "c"
+        "malloc.h": "c",
+        "pio.h": "c",
+        "dma.h": "c",
+        "string.h": "c",
+        "features.h": "c",
+        "cstdlib": "cpp",
+        "algorithm": "cpp",
+        "functional": "cpp",
+        "sk6812.pio.h": "c",
+        "bus_ctrl.h": "c",
+        "dallas_onewire.h": "c"
     }
 }

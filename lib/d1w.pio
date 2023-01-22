@@ -1,13 +1,23 @@
-.program blink
-; turn on led for 100 cycles, then turn off for 100 cycles
+.program d1w
 
-
+; PIO program uses both fifos to communicate with main program
+; Program can send the following instructions with the following codes:
 
 ; nop       0
 ; reset     10
 ; read      110
 ; write 0   1110
 ; write 1   1111
+
+; nop is used for ignoring unused bits e.g. the xx in 10xx
+; node: fifo is actually popped right to left so program will send these codes in reverse
+; e.g. fifo_push(0b0011) to read
+
+; reset pulse returns 24 samples from within the presence period. 
+; if no device is found this will be 0x00FFFFFF, to look for presence check for fifo_pop() < 0x00FFFFFF
+
+; we need a 200kHz clock for 5uS / cycle timing
+; Timing taken from https://www.analog.com/media/en/technical-documentation/data-sheets/ds18b20.pdf
 
 .side_set 1
 .wrap_target
@@ -27,14 +37,13 @@ write_1:
 write_0:
     jmp start      [13] side 0 ; 70 | write 0 for 70uS then jump to start
 read:
-    mov isr null        side 1 ; 5  | clear isr value, write 1
-    nop                 side 0;  10 |
-    set pindirs, 0      side 0 ; 15 | set pindir input
-    in  pins, 1         side 0 ; 20 | read pins
-    nop [15]            side 0 ; 80 | 
-    push noblock        side 0 ; 85 | isr auto pushes to fifo, wait 10 cycles
-    set pindirs, 1      side 1 ; 90 | set pindir output
-    jmp start           side 1 ; 95 | return to start
+    mov isr null        side 0 ; 5  | clear isr value, write 1
+    set pindirs, 0      side 0 ; 10 | set pindir input
+    in  pins, 1         side 0 ; 15 | read pins
+    nop [15]            side 0 ; 75 | 
+    push noblock        side 0 ; 80 | isr auto pushes to fifo, wait 10 cycles
+    set pindirs, 1      side 1 ; 85 | set pindir output
+    jmp start           side 1 ; 90 | return to start
 ; hold low for 480, wait 15, read for 300 
 reset_pulse:
     set y, 5            side 1 ; write 1 for 5us
@@ -47,7 +56,7 @@ reset_loop:
 ; for next 96 cycles (=480uS) look for presence pulse (logic low)
 ; 480/20 = 24 loops
 reset_wait_loop:
-    in pins, 1              [2] side 0 ; 15 | read prescence
+    in pins, 1              [2] side 0 ; 15 | read presence
     jmp y--, reset_wait_loop    side 0 ; 20 | loop
 
     push noblock                side 1 ; 5  | push isr to fifo  
@@ -57,12 +66,11 @@ reset_wait_loop:
 
 % c-sdk {
 
-// Helper function (for use in C program) to initialize this PIO program
-void blink_program_init(PIO pio, uint sm, uint offset, uint pin, float div) {
+void d1w_program_init(PIO pio, uint sm, uint offset, uint pin, float div) {
 
     // Sets up state machine and wrap target. This function is automatically
-    // generated in blink.pio.h.
-    pio_sm_config c = blink_program_get_default_config(offset);
+    // generated in d1w.pio.h.
+    pio_sm_config c = d1w_program_get_default_config(offset);
 
     // Allow PIO to control GPIO pin (as output)
     pio_gpio_init(pio, pin);
@@ -74,8 +82,8 @@ void blink_program_init(PIO pio, uint sm, uint offset, uint pin, float div) {
     sm_config_set_in_pins(&c, pin); 
     sm_config_set_out_pins(&c, pin, 1); 
     sm_config_set_sideset_pins(&c, pin);
-    sm_config_set_out_shift(&c, true, true, 4);
-    sm_config_set_in_shift(&c, false, false, 32);
+    sm_config_set_out_shift(&c, true, true, 4); // Auto-push out fifo
+    sm_config_set_in_shift(&c, false, false, 32); // Manually push in fifo
     
     // Set the pin direction to output (in PIO)
     pio_sm_set_consecutive_pindirs(pio, sm, pin, 1, true);

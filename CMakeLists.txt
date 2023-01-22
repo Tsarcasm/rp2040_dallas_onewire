@@ -15,11 +15,21 @@ set(CMAKE_CXX_STANDARD 17)
 pico_sdk_init()
 
 add_executable(dallas_onewire
-    ${CMAKE_CURRENT_LIST_DIR}/dallas_onewire.c
+    ${CMAKE_CURRENT_LIST_DIR}/main.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/lib/dallas_onewire.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/lib/search.cpp
+)
+
+# Add lib headers
+target_include_directories(dallas_onewire PRIVATE 
+    ${CMAKE_CURRENT_LIST_DIR}/lib
 )
 
 pico_generate_pio_header(dallas_onewire 
-    ${CMAKE_CURRENT_LIST_DIR}/pio/blink.pio
+    ${CMAKE_CURRENT_LIST_DIR}/lib/d1w.pio
+)
+pico_generate_pio_header(dallas_onewire 
+    ${CMAKE_CURRENT_LIST_DIR}/pio/sk6812.pio
 )
 
 pico_add_extra_outputs(dallas_onewire)
